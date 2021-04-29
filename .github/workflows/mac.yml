@@ -1,0 +1,31 @@
+name: mac
+on: 
+  workflow_dispatch:
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - uses: fastai/workflows/ssh@master
+      with:
+        ssh_key: ${{ secrets.SSH_KEY }}
+        key_file: id_ecdsa
+    - uses: actions/checkout@v2
+    - run: source script-mac.sh
+    - name: set up ngrok auth
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }} 
+      run: ngrok authtoken "$NGROK_AUTH_TOKEN"
+    - name: but wait, there's more
+      run: git clone https://github.com/novnc/noVNC.git
+    - name: init noVNC
+      run: cd noVNC && ./utils/launch.sh --listen 8080 --vnc localhost:5900 &
+    - name: ngrok HTML5 access
+      run: ngrok http 8080 &
+    - name: you can go by way of http to...
+      run: curl --silent http://127.0.0.1:4040/api/tunnels | jq '.tunnels[0].public_url'
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v2
